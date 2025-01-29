@@ -3,7 +3,7 @@
 namespace FileStorage;
 
 use FileStorage\Cache\Repository;
-use FileStorage\Drive\Driver;
+use FileStorage\Drive\BptDrive;
 use FileStorage\Http\Client;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Arr;
@@ -22,12 +22,12 @@ class FileStorageServiceProvider extends ServiceProvider
             __DIR__.'/../config/file-storage.php' => config_path('file-storage.php'),
         ]);
 
-        $this->app->bind('file-storage', function ($app) {
+        $this->app->singleton('file-storage', function ($app) {
             $config = $app['config']['file-storage'];
 
-            $client = new Client($config, new Repository($app['cache']));
+            $client = new Client($config, new Repository($app['cache.store']));
 
-            return new Driver($client);
+            return new BptDrive($client);
         });
 
         Storage::extend('bpt-store', function ($app, $config) {
@@ -50,6 +50,7 @@ class FileStorageServiceProvider extends ServiceProvider
             'temporary_url',
             'url',
             'visibility',
+            'group',
         ]));
     }
 }

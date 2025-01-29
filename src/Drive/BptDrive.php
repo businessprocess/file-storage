@@ -5,8 +5,9 @@ namespace FileStorage\Drive;
 use FileStorage\Http\Client;
 use FileStorage\Models\File;
 use GuzzleHttp\RequestOptions;
+use Symfony\Component\HttpFoundation\File\Exception\UploadException;
 
-class Driver
+class BptDrive
 {
     public function __construct(protected Client $client) {}
 
@@ -29,10 +30,14 @@ class Driver
                 ],
                 [
                     'name' => 'file',
-                    'contents' => $content,
+                    'contents' => $content instanceof \SplFileInfo ? fopen($content, 'rb') : $content,
                 ],
             ],
         ]);
+
+        if (empty($response)) {
+            throw new UploadException('File could not be uploaded');
+        }
 
         return new File(json_decode($response, true));
     }
@@ -42,23 +47,20 @@ class Driver
         $this->client->delete('users/{userUuid}/files/'.$uuid);
     }
 
-    public function get($uuid): ?string
+    public function get($uuid): string
     {
-        try {
-            return $this->client->get('users/{userUuid}/files/'.$uuid);
-        } catch (\Exception $e) {
-            return null;
-        }
+        return $this->client->get('users/{userUuid}/files/'.$uuid);
     }
 
-    public function all($query = '', $page = 1, $pageSize = 10): array
+    public function all($query = '', $page = 1, $pageSize = 10, $isPublic = true): array
     {
         $response = $this->client->get('files', [
             RequestOptions::QUERY => [
                 'userUuid' => $this->client->auth()->getUserUuid(),
-                'page' => $page,
+                'pageNum' => $page,
                 'pageSize' => $pageSize,
                 'query' => $query,
+                'isPublic' => $isPublic,
             ],
         ]);
 

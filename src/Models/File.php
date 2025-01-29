@@ -2,43 +2,48 @@
 
 namespace FileStorage\Models;
 
-class File
+use League\Flysystem\FileAttributes;
+
+class File extends FileAttributes
 {
-    protected $id;
+    protected ?int $id;
 
-    protected $hash;
+    protected ?string $hash;
 
-    protected $uuid;
+    protected ?string $name;
 
-    protected $name;
+    protected ?string $groupId;
 
-    protected $createdAt;
+    protected ?string $status;
 
-    protected $mimeType;
-
-    protected $size;
-
-    protected $groupId;
-
-    protected $isPublic;
-
-    protected $status;
-
-    protected $metadata;
-
-    public function __construct($data = null)
+    public function __construct($data = [])
     {
         $this->id = $data['id'] ?? null;
         $this->hash = $data['hash'] ?? null;
-        $this->uuid = $data['uuid'] ?? null;
-        $this->name = $data['name'] ?? null;
-        $this->createdAt = $data['createdAt'] ?? null;
-        $this->mimeType = $data['mimeType'] ?? null;
-        $this->size = $data['size'] ?? null;
         $this->groupId = $data['groupId'] ?? null;
-        $this->isPublic = $data['isPublic'] ?? false;
+        $this->name = $data['name'] ?? null;
         $this->status = $data['status'] ?? null;
-        $this->metadata = $data['metadata'] ?? [];
+
+        $path = $data['uuid'] ?? '';
+        $mimeType = $data['mimeType'] ?? null;
+        $fileSize = $data['size'] ?? null;
+        $extraMetadata = $data['metadata'] ?? [];
+
+        if ($lastModified = $data['createdAt'] ?? null) {
+            $lastModified = strtotime($lastModified);
+        }
+        if (! is_null($visibility = $data['isPublic'] ?? null)) {
+            $visibility = $visibility ? 'public' : 'private';
+        }
+
+        parent::__construct(
+            $path,
+            $fileSize,
+            $visibility,
+            $lastModified,
+            $mimeType,
+            $extraMetadata,
+        );
     }
 
     public function getId(): mixed
@@ -51,29 +56,9 @@ class File
         return $this->hash;
     }
 
-    public function getUuid(): mixed
-    {
-        return $this->uuid;
-    }
-
     public function getName(): mixed
     {
         return $this->name;
-    }
-
-    public function getCreatedAt(): mixed
-    {
-        return $this->createdAt;
-    }
-
-    public function getMimeType(): mixed
-    {
-        return $this->mimeType;
-    }
-
-    public function getSize(): mixed
-    {
-        return $this->size;
     }
 
     public function getGroupId(): mixed
@@ -81,18 +66,8 @@ class File
         return $this->groupId;
     }
 
-    public function getIsPublic(): mixed
-    {
-        return $this->isPublic;
-    }
-
     public function getStatus(): mixed
     {
         return $this->status;
-    }
-
-    public function getMetadata(): mixed
-    {
-        return $this->metadata;
     }
 }

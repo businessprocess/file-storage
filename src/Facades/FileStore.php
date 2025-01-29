@@ -2,11 +2,11 @@
 
 namespace FileStorage\Facades;
 
-use FileStorage\Drive\Driver;
+use FileStorage\Drive\BptDrive;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @mixin Driver
+ * @mixin BptDrive
  */
 class FileStore extends Facade
 {

@@ -1,6 +1,6 @@
 <?php
 
-namespace NotificationChannels\Http\Response;
+namespace FileStorage\Http\Response;
 
 class Authenticate
 {

@@ -2,13 +2,13 @@
 
 namespace FileStorage;
 
-use FileStorage\Drive\Driver;
+use FileStorage\Drive\BptDrive;
 use FileStorage\Models\File;
+use Illuminate\Support\Str;
 use League\Flysystem\FilesystemAdapter;
 use League\Flysystem\UnableToCopyFile;
 use League\Flysystem\UnableToCreateDirectory;
 use League\Flysystem\UnableToDeleteDirectory;
-use League\Flysystem\UnableToDeleteFile;
 use League\Flysystem\UnableToMoveFile;
 use League\Flysystem\UnableToReadFile;
 use League\Flysystem\UnableToSetVisibility;
@@ -19,7 +19,7 @@ class BptStoreAdapter implements FilesystemAdapter
 {
     private array $files = [];
 
-    public function __construct(protected Driver $driver) {}
+    public function __construct(protected BptDrive $drive) {}
 
     private function getFile($path): ?File
     {
@@ -31,18 +31,22 @@ class BptStoreAdapter implements FilesystemAdapter
         data_set($this->files, $path, $file);
     }
 
-    public function getUrl($path): string
+    public function getUrl($path): ?string
     {
-        return $this->driver->getPublicUrl($path);
+        if ($file = $this->getFile($path)) {
+            return $this->drive->getPublicUrl($file->getHash());
+        }
+
+        return null;
     }
 
     public function fileExists(string $path): bool
     {
-        if ($file = $this->getFile($path)) {
-            return (bool) $this->driver->get($file->getUuid());
+        try {
+            return Str::isUuid($path) && $this->read($path);
+        } catch (UnableToReadFile $e) {
+            return false;
         }
-
-        return false;
     }
 
     public function directoryExists(string $path): bool
@@ -52,60 +56,69 @@ class BptStoreAdapter implements FilesystemAdapter
 
     public function write(string $path, string $contents, \League\Flysystem\Config $config): void
     {
+        $resource = tmpfile();
+        fwrite($resource, $contents);
+
+        $this->writeTo($path, $resource, $config);
+    }
+
+    public function writeStream(string $path, $contents, \League\Flysystem\Config $config): void
+    {
+        $this->writeTo($path, $contents, $config);
+    }
+
+    private function writeTo(string $path, $contents, \League\Flysystem\Config $config): void
+    {
         try {
-            $file = $this->driver->add(
+            $file = $this->drive->add(
                 $config->get('group', '1'),
-                $config->get('isPublic', true),
+                $config->get('visibility') === 'public',
                 $contents
             );
 
             $this->setFile($path, $file);
         } catch (Throwable $e) {
-            throw new UnableToWriteFile;
+            throw UnableToWriteFile::atLocation($path, $e->getMessage());
         }
-    }
-
-    public function writeStream(string $path, $contents, \League\Flysystem\Config $config): void
-    {
-        $this->write($path, $contents, $config);
     }
 
     public function read(string $path): string
     {
-        if ($file = $this->getFile($path)) {
-            return $this->driver->get($file->getUuid());
+        try {
+            return $this->drive->get($path);
+        } catch (Throwable $e) {
+            throw UnableToReadFile::fromLocation($path, $e->getMessage());
         }
-
-        throw new UnableToReadFile;
     }
 
     public function readStream(string $path)
     {
-        return $this->read($path);
+        $contents = $this->read($path);
+
+        $resource = tmpfile();
+        fwrite($resource, $contents);
+
+        return $resource;
     }
 
     public function delete(string $path): void
     {
-        if ($file = $this->getFile($path)) {
-            $this->driver->delete($file->getUuid());
-        }
-
-        throw new UnableToDeleteFile;
+        $this->drive->delete($path);
     }
 
     public function deleteDirectory(string $path): void
     {
-        throw new UnableToDeleteDirectory;
+        throw new UnableToDeleteDirectory($path);
     }
 
     public function createDirectory(string $path, \League\Flysystem\Config $config): void
     {
-        throw new UnableToCreateDirectory;
+        throw new UnableToCreateDirectory($path);
     }
 
     public function setVisibility(string $path, string $visibility): void
     {
-        throw new UnableToSetVisibility;
+        throw new UnableToSetVisibility($path);
     }
 
     public function visibility(string $path): \League\Flysystem\FileAttributes
@@ -130,16 +143,31 @@ class BptStoreAdapter implements FilesystemAdapter
 
     public function listContents(string $path, bool $deep): iterable
     {
-        return collect($this->driver->all());
+        $results = [];
+        $page = 0;
+        $perPage = 100;
+        do {
+            $page++;
+            try {
+                $files = $this->drive->all('', $page, $perPage);
+            } catch (\Throwable $exception) {
+                throw new \Exception('Failed to fetch '.$page.' page due to: '.
+                    $exception->getMessage(), $exception->getCode(), $exception);
+            }
+            $results = array_merge($results, $files);
+
+        } while ($perPage === count($files));
+
+        return $results;
     }
 
     public function move(string $source, string $destination, \League\Flysystem\Config $config): void
     {
-        throw new UnableToMoveFile;
+        throw UnableToMoveFile::because('not supported method', $source, $destination);
     }
 
     public function copy(string $source, string $destination, \League\Flysystem\Config $config): void
     {
-        throw new UnableToCopyFile;
+        throw UnableToCopyFile::because('not supported method', $source, $destination);
     }
 }

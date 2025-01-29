@@ -3,10 +3,10 @@
 namespace FileStorage\Http;
 
 use FileStorage\Contracts\Cache;
+use FileStorage\Http\Response\Authenticate;
 use GeoService\Cache\ArrayRepository;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\RequestOptions;
-use NotificationChannels\Http\Response\Authenticate;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 /**
@@ -23,13 +23,12 @@ class Client
         $this->processOptions();
 
         $this->client = new \GuzzleHttp\Client([
-            'base_uri' => $options['url'],
+            'base_uri' => $this->options['url'],
+            RequestOptions::CONNECT_TIMEOUT => $this->options['connect_timeout'] ?? 80,
+            RequestOptions::TIMEOUT => $this->options['timeout'] ?? 30,
             RequestOptions::HEADERS => [
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
-                RequestOptions::CONNECT_TIMEOUT => $config['connect_timeout'] ?? 80,
-                RequestOptions::TIMEOUT => $config['timeout'] ?? 30,
-                'http_errors' => false,
             ],
         ]);
     }
@@ -57,6 +56,8 @@ class Client
         if (! isset($this->options['login']) || ! isset($this->options['password'])) {
             throw new \InvalidArgumentException('Login and password is required');
         }
+
+        $this->options['url'] = trim($this->options['url'], '/').'/api/v1/';
     }
 
     /**
@@ -67,7 +68,7 @@ class Client
     public function request(string $method, string $uri, array $options = [], int $tries = 2): string
     {
         try {
-            $response = $this->client->request($method, $uri, array_merge($this->getHeaders(), $options));
+            $response = $this->client->request($method, $this->resolveAliases($uri), array_merge($this->getHeaders(), $options));
         } catch (RequestException $e) {
             if ($e->getCode() === HttpResponse::HTTP_UNAUTHORIZED) {
                 $this->cache()->forget(__CLASS__);
@@ -108,7 +109,7 @@ class Client
         return json_decode($response->getBody()->getContents(), true);
     }
 
-    protected function auth(): Authenticate
+    public function auth(): Authenticate
     {
         return $this->cache->remember(
             __CLASS__,
@@ -121,13 +122,13 @@ class Client
     {
         return [
             RequestOptions::HEADERS => [
-                ['Authorization' => $this->auth()->getAuthToken()],
+                'Authorization' => $this->auth()->getAuthToken(),
             ],
         ];
     }
 
     public function __call(string $name, array $arguments): mixed
     {
-        return $this->{$name}(...$arguments);
+        return $this->request($name, ...$arguments);
     }
 }

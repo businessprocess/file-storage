@@ -21,7 +21,7 @@ The recommended way to install channel is through
 composer require businessprocess/file-storage
 ```
 
-## Usage <a name="usege-driver"></a>
+## Usage BptDrive <a name="usege-drive"></a>
 
 ```php
     $config = [
@@ -30,14 +30,14 @@ composer require businessprocess/file-storage
         'password' => env('FILE_STORE_PASS'),      
     ];
 
-   $storage = new \FileStorage\Drive\Driver(new \FileStorage\Http\Client($config));
+   $storage = new \FileStorage\Drive\BptDrive(new \FileStorage\Http\Client($config));
 
    $file = $storage->add('1', true, $content);
 
    $url = $storage->getPublicUrl($file->getHash());
 ```
 
-## Usage <a name="usege-facade"></a>
+## Usage FileStore Facade <a name="usege-facade"></a>
 
 ```php
    $file = \FileStorage\Facades\FileStore::add('1', true, $content);
@@ -45,16 +45,29 @@ composer require businessprocess/file-storage
    $url = \FileStorage\Facades\FileStore::getPublicUrl($file->getHash());
 ```
 
-## Usage <a name="usege-disk"></a>
+## Usage Storage <a name="usege-storage"></a>
+
+```php
+    $path = 'your-file-path'
+
+   \Storage::drive('cloud')->put($path, $content, $config);
+
+   $url = \Storage::drive('cloud')->url($path);
+```
+
+## Config <a name="usege-disk"></a>
 ```php
     'disks' => [
        'cloud' => [
         'driver' => 'bpt-store',      
+        'group' => '1',
+        'visibility' => 'public',
+        'throw' => true,
         ],
     ]
 ```
 
-## Usage <a name="usege-voyager"></a>
+## Config Voyager <a name="usege-voyager"></a>
 ```php
      'storage' => [
         'disk' => 'cloud',
