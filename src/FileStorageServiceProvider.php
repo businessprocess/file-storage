@@ -5,12 +5,8 @@ namespace FileStorage;
 use FileStorage\Cache\Repository;
 use FileStorage\Drive\BptDrive;
 use FileStorage\Http\Client;
-use Illuminate\Filesystem\FilesystemAdapter;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
-use League\Flysystem\Filesystem as Flysystem;
-use League\Flysystem\FilesystemAdapter as FlysystemAdapter;
 
 class FileStorageServiceProvider extends ServiceProvider
 {
@@ -31,26 +27,12 @@ class FileStorageServiceProvider extends ServiceProvider
         });
 
         Storage::extend('bpt-store', function ($app, $config) {
-            $adapter = new BptStoreAdapter($app->make('file-storage'));
-
-            return new FilesystemAdapter($this->createFlysystem($adapter, $config), $adapter, $config);
+            new Adapters\FilesystemAdapter($app->make('file-storage'), $app->make('filesystem.disk'), $config);
         });
     }
 
     public function register()
     {
         //
-    }
-
-    protected function createFlysystem(FlysystemAdapter $adapter, array $config)
-    {
-        return new Flysystem($adapter, Arr::only($config, [
-            'directory_visibility',
-            'disable_asserts',
-            'temporary_url',
-            'url',
-            'visibility',
-            'group',
-        ]));
     }
 }

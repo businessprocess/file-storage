@@ -16,7 +16,7 @@ class BptDrive
         return $this->client->resolveAliases("{baseUrl}/files/{$hash}");
     }
 
-    public function add($groupId, $isPublic, $content): File
+    public function add($content, $groupId, $isPublic = true): File
     {
         $response = $this->client->post('users/{userUuid}/files', [
             RequestOptions::MULTIPART => [

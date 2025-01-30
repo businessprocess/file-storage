@@ -1,9 +1,8 @@
 <?php
 
-namespace FileStorage;
+namespace FileStorage\Adapters;
 
 use FileStorage\Drive\BptDrive;
-use FileStorage\Models\File;
 use Illuminate\Support\Str;
 use League\Flysystem\FilesystemAdapter;
 use League\Flysystem\UnableToCopyFile;
@@ -17,27 +16,11 @@ use Throwable;
 
 class BptStoreAdapter implements FilesystemAdapter
 {
-    private array $files = [];
-
     public function __construct(protected BptDrive $drive) {}
-
-    private function getFile($path): ?File
-    {
-        return data_get($this->files, $path);
-    }
-
-    private function setFile($path, $file): void
-    {
-        data_set($this->files, $path, $file);
-    }
 
     public function getUrl($path): ?string
     {
-        if ($file = $this->getFile($path)) {
-            return $this->drive->getPublicUrl($file->getHash());
-        }
-
-        return null;
+        return $this->drive->getPublicUrl($path);
     }
 
     public function fileExists(string $path): bool
@@ -71,12 +54,10 @@ class BptStoreAdapter implements FilesystemAdapter
     {
         try {
             $file = $this->drive->add(
+                $contents,
                 $config->get('group', '1'),
-                $config->get('visibility') === 'public',
-                $contents
+                $config->get('visibility') === 'public'
             );
-
-            $this->setFile($path, $file);
         } catch (Throwable $e) {
             throw UnableToWriteFile::atLocation($path, $e->getMessage());
         }
