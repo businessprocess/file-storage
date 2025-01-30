@@ -5,6 +5,7 @@ namespace FileStorage\Adapters;
 use FileStorage\Drive\BptDrive;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Traits\ForwardsCalls;
+use Symfony\Component\HttpFoundation\File\Exception\UploadException;
 
 class FilesystemAdapter
 {
@@ -23,16 +24,24 @@ class FilesystemAdapter
 
     public function put(&$path, $contents, $options = [])
     {
-        $resource = tmpfile();
-        fwrite($resource, $contents);
+        try {
+            $resource = tmpfile();
+            fwrite($resource, $contents);
 
-        $file = $this->drive->add(
-            $contents,
-            $this->config['group'] ?? '1',
-            $this->config['visibility'] === 'public'
-        );
+            $file = $this->drive->add(
+                $resource,
+                $this->config['group'] ?? '1',
+                $this->config['visibility'] === 'public'
+            );
 
-        $path = $this->drive->getPublicUrl($file->getHash());
+            $path = $this->drive->getPublicUrl($file->getHash());
+        } catch (UploadException $e) {
+            report($e);
+
+            return false;
+        }
+
+        return true;
     }
 
     public function __call(string $name, array $arguments): mixed

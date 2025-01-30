@@ -27,7 +27,7 @@ class FileStorageServiceProvider extends ServiceProvider
         });
 
         Storage::extend('bpt-store', function ($app, $config) {
-            new Adapters\FilesystemAdapter($app->make('file-storage'), $app->make('filesystem.disk'), $config);
+            return new Adapters\FilesystemAdapter($app->make('file-storage'), $app->make('filesystem.disk'), $config);
         });
     }
 
